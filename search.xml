@@ -277,4 +277,34 @@
         <tag>log4j2</tag>
       </tags>
   </entry>
+  <entry>
+    <title></title>
+    <url>/2023/03/25/filter%E5%86%85%E5%AD%98%E9%A9%AC/</url>
+    <content><![CDATA[<h1 id="filter内存马"><a href="#filter内存马" class="headerlink" title="filter内存马"></a>filter内存马</h1><h1 id="filter生命周期"><a href="#filter生命周期" class="headerlink" title="filter生命周期"></a>filter生命周期</h1><p>filter：自定义filter ，需要实现init()、doFilter、destory()</p>
+<ul>
+<li>启动服务加载过滤器的实例，调用init方法来初始化filter实例</li>
+<li>每次请求经过filter通过 doFilter()处理</li>
+<li>停止服务时调用destory方法，销毁实例，所以服务重启会失效</li>
+</ul>
+<h1 id="tomcat相关知识"><a href="#tomcat相关知识" class="headerlink" title="tomcat相关知识"></a>tomcat相关知识</h1><p>tomcat中有四种类型的servlet容器，分别是Engine、Host、Context、Wrapper，其中重点关注Context</p>
+<p>Host：表示一个虚拟主机，例如: a.com</p>
+<p>Context：表示一个web应用，<strong>内存马就是注入到Context中</strong></p>
+<p>Wrapper：代表一个servlet路由接口</p>
+<p>使用request.getServletContext() 获取StandardContext上下文。最常用的方式 </p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>注入内存马模拟了在web.xml中写filter配置的过程，</p>
+<p>其中<strong>filterDesfs</strong>中存放了filter的定义，自定义的filter名称以及filter的类名</p>
+<p><strong>filterConfigs除了存放filterDef还存放了当前的Context？？？作用</strong></p>
+<p>filterMaps对应了web.xml中配置的<filter-mapping>，里面代表了各个filter之间的调用顺序，存放自定义filter名称和具体路由</filter-mapping></p>
+<h1 id="动态创建filter流程"><a href="#动态创建filter流程" class="headerlink" title="动态创建filter流程"></a>动态创建filter流程</h1><p>1、创建filter</p>
+<p>2、filterDef对filter进行封装</p>
+<p>3、将filterDef添加到filterDefs和filterConfigs中</p>
+<p>4、创建新的filterMap将url和filter进行绑定，并添加到filterMaps中</p>
+<p>5、将新创建的filter移动到FilterChain的第一位去</p>
+<p>每次请求createFilterChain都会根据次动态生成一个过滤链，</p>
+<p>1、疑问standardContext作用filterConfig</p>
+<p>2、</p>
+]]></content>
+  </entry>
 </search>
