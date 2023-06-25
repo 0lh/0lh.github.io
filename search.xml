@@ -290,19 +290,20 @@
 <p>Host：表示一个虚拟主机，例如: a.com</p>
 <p>Context：表示一个web应用，<strong>内存马就是注入到Context中</strong></p>
 <p>Wrapper：代表一个servlet路由接口</p>
-<p>使用request.getServletContext() 获取StandardContext上下文。最常用的方式 </p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"></span><br></pre></td></tr></table></figure>
-
-<p>注入内存马模拟了在web.xml中写filter配置的过程，</p>
-<p>其中<strong>filterDesfs</strong>中存放了filter的定义，自定义的filter名称以及filter的类名</p>
-<p><strong>filterConfigs除了存放filterDef还存放了当前的Context？？？作用</strong></p>
-<p>filterMaps对应了web.xml中配置的<filter-mapping>，里面代表了各个filter之间的调用顺序，存放自定义filter名称和具体路由</filter-mapping></p>
+<p>使用request.getServletContext() 获取StandardContext上下文。</p>
+<h1 id="动态注册思路"><a href="#动态注册思路" class="headerlink" title="动态注册思路"></a>动态注册思路</h1><p>注入内存马模拟了在web.xml中写filter配置的过程，如果可以把自己创建的FilterMap放在FilterMaps的最前面，urlpattern匹配到的时候，就能把恶意FilterConfig添加到FilterChain中，然后触发shell</p>
+<p>通过反射生成恶意filterDefs、filterConfig、filterMaps，三个一起放入Context就起到了web.xml注册一样的效果</p>
+<p><strong>FilterDefs</strong>：存放FilterDef的数组 ，<strong>FilterDef</strong> 中存储着我们过滤器名，过滤器实例，url 等基本信息</p>
+<p><strong>FilterConfigs</strong>：存放filterConfig的数组，在 <strong>FilterConfig</strong> 中主要存放 FilterDef 和 Filter对象等信息</p>
+<p><strong>FilterMaps</strong>：存放FilterMap的数组，在 <strong>FilterMap</strong> 中主要存放了 FilterName 和 对应的URLPattern</p>
 <h1 id="动态创建filter流程"><a href="#动态创建filter流程" class="headerlink" title="动态创建filter流程"></a>动态创建filter流程</h1><p>1、创建filter</p>
 <p>2、filterDef对filter进行封装</p>
 <p>3、将filterDef添加到filterDefs和filterConfigs中</p>
 <p>4、创建新的filterMap将url和filter进行绑定，并添加到filterMaps中</p>
-<p>5、将新创建的filter移动到FilterChain的第一位去</p>
-<p>每次请求createFilterChain都会根据次动态生成一个过滤链，</p>
+<p>5、将新创建的filter移动到FilterChain的第一位去,每次请求createFilterChain都会根据次动态生成一个过滤链</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">standardContext.addFilterMapBefore(filterMap);</span><br></pre></td></tr></table></figure>
+
+<p>standardContext找filter相关的配置，先去找filterConfigs—&gt;filterconfig–&gt;具体的filterDef和filterMap</p>
 ]]></content>
       <tags>
         <tag>filter 内存马</tag>
